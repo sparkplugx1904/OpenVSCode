@@ -22,7 +22,7 @@ jobs:
           workdir="$RUNNER_TEMP/code-server"
           mkdir -p "$workdir"
 
-          password="${PASWORD:-$(openssl rand -hex 18)}"
+          password="${PASWORD:-KaggleVSCode2026}"
           if [[ -z "$password" ]]; then
             echo "Unable to create a code-server password." >&2
             exit 1
