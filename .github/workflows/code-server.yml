@@ -1,0 +1,101 @@
+name: VS Code Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  code-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+
+    steps:
+      - name: Start code-server and Cloudflare Tunnel
+        shell: bash
+        env:
+          CODE_SERVER_PASSWORD: ${{ secrets.CODE_SERVER_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+
+          workdir="$RUNNER_TEMP/code-server"
+          mkdir -p "$workdir"
+
+          password="${CODE_SERVER_PASSWORD:-$(openssl rand -hex 18)}"
+          if [[ -z "$password" ]]; then
+            echo "Unable to create a code-server password." >&2
+            exit 1
+          fi
+          echo "::add-mask::$password"
+
+          release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/coder/code-server/releases/latest)"
+          version="${release_url##*/v}"
+          if [[ -z "$version" || "$version" == "$release_url" ]]; then
+            echo "Unable to determine the latest code-server version." >&2
+            exit 1
+          fi
+
+          curl -fsSL "https://github.com/coder/code-server/releases/download/v${version}/code-server-${version}-linux-amd64.tar.gz" \
+            | tar xz -C "$workdir" --strip-components=1
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            -o "$workdir/cloudflared"
+          chmod +x "$workdir/cloudflared"
+
+          code_server_log="$workdir/code-server.log"
+          tunnel_log="$workdir/cloudflared.log"
+
+          "$workdir/bin/code-server" \
+            --bind-addr 127.0.0.1:8080 \
+            --auth password \
+            >"$code_server_log" 2>&1 &
+          code_server_pid=$!
+
+          tunnel_pid=""
+          cleanup() {
+            [[ -n "$tunnel_pid" ]] && kill "$tunnel_pid" 2>/dev/null || true
+            kill "$code_server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+            cat "$code_server_log" >&2
+            echo "code-server did not become ready." >&2
+            exit 1
+          fi
+
+          "$workdir/cloudflared" tunnel --no-autoupdate --url http://127.0.0.1:8080 \
+            >"$tunnel_log" 2>&1 &
+          tunnel_pid=$!
+
+          tunnel_url=""
+          for _ in {1..60}; do
+            tunnel_url="$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$tunnel_log" | head -n 1 || true)"
+            [[ -n "$tunnel_url" ]] && break
+            sleep 1
+          done
+
+          if [[ -z "$tunnel_url" ]]; then
+            cat "$tunnel_log" >&2
+            echo "Cloudflare Tunnel did not provide a public URL." >&2
+            exit 1
+          fi
+
+          {
+            echo "## VS Code Server"
+            echo
+            echo "- URL: $tunnel_url"
+            echo "- Password: $password"
+            echo
+            echo "The server remains available while this workflow job is running."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "VS Code URL: $tunnel_url"
+          echo "VS Code password: $password"
+          echo "Keeping the server alive until the workflow is cancelled or times out."
+          tail -f "$tunnel_log"
