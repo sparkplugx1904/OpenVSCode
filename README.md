@@ -1,6 +1,6 @@
 # OpenVSCode
 
-<a href="https://github.com/sparkplugx1904/OpenVSCode/actions/workflows/code-server.yml"><img src="https://img.shields.io/badge/Launch-VS%20Code%20Server-007ACC?logo=visual-studio-code&logoColor=white" alt="Launch VS Code Server"></a>
+<a href="https://github.com/sparkplugx1904/OpenVSCode/actions/workflows/code-server.yml?ref=main"><img src="https://img.shields.io/badge/Launch-VS%20Code%20Server-007ACC?logo=visual-studio-code&logoColor=white" alt="Launch VS Code Server"></a>
 
 Click **Launch VS Code Server**, select **Run workflow**, and open the workflow summary to get the temporary URL and password.
 
