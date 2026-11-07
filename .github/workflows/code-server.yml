@@ -42,12 +42,17 @@ jobs:
             -o "$workdir/cloudflared"
           chmod +x "$workdir/cloudflared"
 
+          user_data_dir="$workdir/user-data"
+          mkdir -p "$user_data_dir/User"
+          printf '{"workbench.colorTheme":"Default Dark Modern"}\n' > "$user_data_dir/User/settings.json"
+
           code_server_log="$workdir/code-server.log"
           tunnel_log="$workdir/cloudflared.log"
 
           "$workdir/bin/code-server" \
             --bind-addr 127.0.0.1:8080 \
             --auth password \
+            --user-data-dir "$user_data_dir" \
             >"$code_server_log" 2>&1 &
           code_server_pid=$!
 
