@@ -15,14 +15,14 @@ jobs:
       - name: Start code-server and Cloudflare Tunnel
         shell: bash
         env:
-          CODE_SERVER_PASSWORD: ${{ secrets.CODE_SERVER_PASSWORD }}
+          PASWORD: ${{ secrets.PASSWORD }}
         run: |
           set -Eeuo pipefail
 
           workdir="$RUNNER_TEMP/code-server"
           mkdir -p "$workdir"
 
-          password="${CODE_SERVER_PASSWORD:-$(openssl rand -hex 18)}"
+          password="${PASWORD:-$(openssl rand -hex 18)}"
           if [[ -z "$password" ]]; then
             echo "Unable to create a code-server password." >&2
             exit 1
