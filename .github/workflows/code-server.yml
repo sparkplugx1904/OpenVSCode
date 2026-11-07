@@ -5,6 +5,7 @@ on:
 
 jobs:
   code-server:
+    if: github.actor == 'sparkplugx1904'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
